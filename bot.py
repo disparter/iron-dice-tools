@@ -11,14 +11,13 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 DICE_ROLLER = os.getenv('DICE_ROLER_NAME')
 
 client = discord.Client()
-_next_dc = 10
+_dcs = {}
+_dc_command = '!dc'
 
 
 def parse_dc_value(message):
     try:
-        found = re.search(r'[0-9]+', message.content.lower).group(0)
-        print(f'{found} FOUND DC')
-
+        found = int(re.search(r'[0-9]+', message.content.lower()).group(0))
     except AttributeError:
         found = ''
         print("Not a valid command")
@@ -27,39 +26,51 @@ def parse_dc_value(message):
 
 
 async def compare(message):
-    if not _next_dc:
+    print(f'{_dcs} NEXT DC!')
+
+    if not _dcs:
         await client.send_message(message.channel, "There is no DC or is secret - Ask DM a valid DC")
         return
 
     dc_value = parse_dc_value(message)
 
-    if dc_value >= _next_dc:
-        await client.send_message(message.channel, "Success!")
+    print(f'{dc_value} VALUE ROLLED!')
+
+    if dc_value >= _dcs[message.guild.id]:
+        await message.channel.send("Success!")
     else:
-        await client.send_message(message.channel, "Failure!")
+        await message.channel.send("Failure!")
 
     return
+
+
+async def set_dc(message):
+
+    if message.content.lower().startswith(_dc_command):
+        dc_value = parse_dc_value(message)
+        if dc_value:
+            _dcs[message.guild.id] = int(dc_value)
 
 
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
+    print(f'{DICE_ROLLER} depending on ')
 
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
+    author = str(message.author).strip()
+    if author == client.user:
         return
 
-    if message.author == DICE_ROLLER:
-        return compare(message)
+    print(f'{author} Message Author')
+    print(f'{message.guild.id} GuildId')
 
-    dc_command = '!DC'
+    if author == DICE_ROLLER:
+        return await compare(message)
 
-    if dc_command in message.content.lower():
-        dc_value = parse_dc_value(message)
-        if dc_value:
-            _next_dc = int(dc_value)
+    await set_dc(message)
 
 
 client.run(TOKEN)
